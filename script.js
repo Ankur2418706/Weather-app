@@ -1,5 +1,4 @@
-  <script>
-    
+
     var API_KEY = '98ecd32d7b24c7a769abe3091d55ecb7';
 
     var BG_THEMES = {
