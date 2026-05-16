@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather-app</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --card-bg: rgba(10,10,15,0.72);
+      --card-border: rgba(255,255,255,0.08);
+      --text-primary: #f0f0f0;
+      --text-muted: rgba(255,255,255,0.45);
+      --accent: #6ee7f7;
+      --stat-bg: rgba(255,255,255,0.05);
+      --radius: 28px;
+      --transition: 0.5s cubic-bezier(0.23,1,0.32,1);
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      overflow: hidden; background: #0d1b2a;
+      color: var(--text-primary); position: relative;
+    }
+
+    #bgCanvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; }
+    .bg-overlay { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+    #weatherCanvas { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+    body::after {
+      content: ''; position: fixed; inset: 0; z-index: 3; pointer-events: none;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.012) 2px, rgba(255,255,255,0.012) 4px);
+    }
+
+    .search-wrap {
+      position: relative; z-index: 10; display: flex; gap: 10px;
+      margin-bottom: 28px; animation: slideDown 0.8s cubic-bezier(0.23,1,0.32,1) both;
+    }
+
+    .search-wrap input {
+      background: rgba(255,255,255,0.92); border: none; border-radius: 12px;
+      padding: 14px 22px; font-family: 'Outfit', sans-serif; font-size: 15px;
+      font-weight: 500; color: #1a1a2e; outline: none; width: 200px;
+      transition: box-shadow 0.3s, transform 0.2s;
+    }
+
+    .search-wrap input:focus { box-shadow: 0 0 0 3px rgba(110,231,247,0.5); transform: translateY(-2px); }
+    .search-wrap button {
+      background: #3535e7; color: #fff; border: none; border-radius: 12px;
+      padding: 14px 30px; font-family: 'Outfit', sans-serif; font-size: 15px;
+      font-weight: 600; cursor: pointer; letter-spacing: 0.5px;
+      transition: background 0.5s, transform 0.2s, box-shadow 0.3s;
+    }
+
+    .search-wrap button:hover { background: #0f3460; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+    .search-wrap button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .error-banner {
+      position: relative; z-index: 10;
+      background: rgba(255,80,80,0.15); border: 1px solid rgba(255,80,80,0.3);
+      border-radius: 12px; padding: 10px 20px; font-size: 13px; color: #ff9999;
+      margin-bottom: 16px; display: none;
+    }
+
+    .error-banner.visible { display: block; }
+
+    .card {
+      position: relative; z-index: 10;
+      background: var(--card-bg);
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+      border: 1px solid var(--card-border); border-radius: var(--radius);
+      padding: 36px 40px; width: min(680px, 92vw);
+      display: grid; grid-template-columns: 1fr auto; gap: 28px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);
+      animation: fadeUp 1s cubic-bezier(0.23,1,0.32,1) 0.2s both;
+    }
+
+    .loading-overlay {
+      position: absolute; inset: 0; border-radius: var(--radius);
+      background: rgba(0,0,0,0.4); display: none; align-items: center;
+      justify-content: center; z-index: 20; backdrop-filter: blur(4px);
+      font-size: 14px; color: var(--text-muted); letter-spacing: 2px;
+    }
+
+    .loading-overlay.active { display: flex; }
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid rgba(255,255,255,0.15); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 10px;
+    }
+
+    .card-left { display: flex; flex-direction: column; gap: 6px; }
+    .city-name { font-size: 32px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.1; }
+    .country-tag { font-size: 13px; color: var(--text-muted); font-weight: 400; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+    .temp-main { font-size: 72px; font-weight: 200; letter-spacing: -4px; line-height: 1; margin: 8px 0; }
+    .temp-main span { font-size: 32px; font-weight: 400; letter-spacing: 0; vertical-align: top; margin-top: 12px; display: inline-block; }
+    .weather-desc { font-size: 16px; color: var(--accent); font-weight: 500; text-transform: capitalize; letter-spacing: 0.3px; margin-bottom: 20px; }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+    .stat-box {
+      background: var(--stat-bg); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px; padding: 14px 16px; cursor: default;
+      transition: all 0.3s; position: relative; overflow: hidden;
+    }
+
+    .stat-box:hover { background: rgba(255,255,255,0.09); border-color: rgba(110,231,247,0.2); transform: translateY(-2px); }
+    .stat-label { font-size: 11px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 5px; }
+    .stat-value { font-size: 22px; font-weight: 600; color: var(--text-primary); }
+    .stat-value .unit { font-size: 13px; font-weight: 400; color: var(--text-muted); margin-left: 2px; }
+    .stat-icon { font-size: 11px; color: var(--accent); margin-bottom: 4px; opacity: 0.8; }
+    .stat-box .tooltip {
+      position: absolute; bottom: calc(100% + 8px); left: 50%;
+      transform: translateX(-50%) scale(0.9);
+      background: rgba(20,30,50,0.95); border: 1px solid rgba(110,231,247,0.2);
+      border-radius: 8px; padding: 6px 12px; font-size: 11px;
+      color: rgba(255,255,255,0.7); white-space: nowrap; pointer-events: none;
+      opacity: 0; transition: all 0.25s;
+    }
+
+    .stat-box:hover .tooltip { opacity: 1; transform: translateX(-50%) scale(1); }
+    .card-right { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 160px; gap: 12px; }
+    .icon-wrap { width: 120px; height: 120px; position: relative; display: flex; align-items: center; justify-content: center; }
+    .sun-icon, .rain-icon, .haze-icon, .snow-icon, .cloud-icon { display: none; position: absolute; }
+    .sun-icon.active, .rain-icon.active, .haze-icon.active, .snow-icon.active, .cloud-icon.active { display: flex; }
+    .sun-core {
+      width: 54px; height: 54px;
+      background: radial-gradient(circle at 35% 35%, #fff7a0, #ffcc00 40%, #ff8800);
+      border-radius: 50%; position: relative; z-index: 2;
+      box-shadow: 0 0 30px 8px rgba(255,200,0,0.5), 0 0 60px 20px rgba(255,150,0,0.25);
+      animation: sunPulse 3s ease-in-out infinite;
+    }
+
+    .sun-rays {
+      position: absolute; width: 120px; height: 120px; top: 50%; left: 50%;
+      transform-style: preserve-3d; animation: raysSpin 12s linear infinite;
+    }
+
+    .ray { position: absolute; width: 3px; border-radius: 3px; background: linear-gradient(to top, rgba(255,200,0,0.9), rgba(255,200,0,0)); top: 50%; left: 50%; transform-origin: 0 0; }
+    .cloud-body { width: 80px; height: 40px; background: linear-gradient(135deg, #b0c4de, #8fa8c8); border-radius: 40px 40px 0 0; position: relative; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+    .cloud-body::before { content: ''; position: absolute; width: 44px; height: 44px; background: #a8bcd4; border-radius: 50%; top: -22px; left: 12px; }
+    .cloud-body::after  { content: ''; position: absolute; width: 32px; height: 32px; background: #b8ccde; border-radius: 50%; top: -14px; left: 36px; }
+    
+    .rain-drops { display: flex; gap: 8px; margin-top: 8px; padding-left: 10px; }
+    .drop { width: 3px; border-radius: 3px; background: linear-gradient(to bottom, #6aadff, rgba(100,173,255,0)); animation: dropFall 1.2s linear infinite; }
+    .drop:nth-child(1) { height: 14px; animation-delay: 0s; }
+    .drop:nth-child(2) { height: 18px; animation-delay: 0.2s; }
+    .drop:nth-child(3) { height: 12px; animation-delay: 0.4s; }
+    .drop:nth-child(4) { height: 16px; animation-delay: 0.15s; }
+    .drop:nth-child(5) { height: 10px; animation-delay: 0.35s; }
+
+    .haze-icon { flex-direction: column; gap: 7px; }
+    .haze-line { height: 5px; border-radius: 5px; background: linear-gradient(to right, transparent, rgba(220, 229, 238, 0.8), transparent); animation: hazeWave .5s ease-in-out infinite; }
+    .haze-line:nth-child(1) { width: 90px; }
+    .haze-line:nth-child(2) { width: 70px; animation-delay: 0.3s; margin-left: 10px; }
+    .haze-line:nth-child(3) { width: 80px; animation-delay: 0.6s; margin-left: 5px; }
+    .haze-line:nth-child(4) { width: 60px; animation-delay: 0.2s; margin-left: 20px; }
+    
+    .snowflake-icon { font-size: 70px; animation: snowSpin 8s linear infinite; filter: drop-shadow(0 0 12px rgba(180,220,255,0.8)); line-height: 1; }
+    .cloud-big { width: 100px; height: 48px; background: linear-gradient(135deg, #cbd5e1, #94a3b8); border-radius: 48px 48px 0 0; position: relative; box-shadow: 0 6px 24px rgba(0,0,0,0.25); animation: cloudFloat 4s ease-in-out infinite; }
+    .cloud-big::before { content: ''; position: absolute; width: 52px; height: 52px; background: #b8c5d8; border-radius: 50%; top: -26px; left: 14px; }
+    .cloud-big::after  { content: ''; position: absolute; width: 40px; height: 40px; background: #cad5e4; border-radius: 50%; top: -18px; left: 44px; }
+
+    .card-footer { grid-column: 1/-1; display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.06); margin-top: 4px; }
+
+    .username { font-size: 11px; color: var(--text-muted); letter-spacing: 0.8px; }
+
+    .subject { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.2); }
+    
+    @keyframes slideDown { from { opacity:0; transform:translateY(-30px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(40px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+    @keyframes sunPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.08); } }
+    @keyframes raysSpin { from { transform:translate(-50%,-50%) rotate(0deg); } to { transform:translate(-50%,-50%) rotate(360deg); } }
+    @keyframes dropFall { 0% { opacity:1; transform:translateY(0); } 100% { opacity:0; transform:translateY(22px); } }
+    @keyframes hazeWave { 0%,100% { transform:translateX(0); opacity:0.5; } 50% { transform:translateX(8px); opacity:1; } }
+    @keyframes snowSpin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+    @keyframes cloudFloat { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  
+  </style>
+</head>
+<body>
+
+  <canvas id="bgCanvas"></canvas>
+  <div class="bg-overlay"></div>
+  <canvas id="weatherCanvas"></canvas>
+
+  <div class="search-wrap">
+    <input type="text" id="countryInput" placeholder="Country (optional)">
+    <input type="text" id="cityInput" placeholder="City" autofocus>
+    <button id="goBtn" onclick="updateWeather()">Go</button>
+  </div>
+
+  <div class="error-banner" id="errorBanner"></div>
+
+  <div class="card">
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div> Fetching weather…
+    </div>
+
+    <div class="card-left">
+      <p class="country-tag" id="countryDisplay">—</p>
+      <h1 class="city-name" id="cityDisplay">Loading…</h1>
+      <div class="temp-main" id="tempDisplay">—<span>°C</span></div>
+
+      <p class="weather-desc" id="descDisplay">Fetching data</p>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-icon">FEELS LIKE</div>
+          <div class="stat-label">Apparent Temp</div>
+          <div class="stat-value" id="feelsLike">—<span class="unit">°C</span></div>
+          <div class="tooltip">How the temp actually feels on skin</div>
+        </div>
+
+        <div class="stat-box">
+          <div class="stat-icon">HUMIDITY</div>
+          <div class="stat-label">Relative %</div>
+          <div class="stat-value" id="humidityVal">—<span class="unit">%</span></div>
+          <div class="tooltip">Amount of moisture in the air</div>
+        </div>
+
+        <div class="stat-box">
+          <div class="stat-icon">WIND SPEED</div>
+          <div class="stat-label">Current Wind</div>
+          <div class="stat-value" id="windVal">—<span class="unit">km/h</span></div>
+          <div class="tooltip">Speed of wind at ground level</div>
+        </div>
+
+        <div class="stat-box">
+          <div class="stat-icon">VISIBILITY</div>
+          <div class="stat-label">View Range</div>
+          <div class="stat-value" id="visibVal">—<span class="unit">km</span></div>
+          <div class="tooltip">Maximum visibility distance</div>
+        </div>
+
+        <div class="stat-box">
+          <div class="stat-icon">LATITUDE</div>
+          <div class="stat-label">Coordinates</div>
+          <div class="stat-value" id="latVal" style="font-size:18px">—</div>
+          <div class="tooltip">Geographic latitude</div>
+        </div>
+
+        <div class="stat-box">
+          <div class="stat-icon">LONGITUDE</div>
+          <div class="stat-label">Coordinates</div>
+          <div class="stat-value" id="lonVal" style="font-size:18px">—</div>
+          <div class="tooltip">Geographic longitude</div>
+        </div>
+
+      </div>
+    </div>
+    <div class="card-right">
+      <div class="icon-wrap">
+        <div class="sun-icon active" id="iconSunny">
+          <div class="sun-rays" id="sunRays"></div>
+          <div class="sun-core"></div>
+        </div>
+
+        <div class="rain-icon" id="iconRain" style="flex-direction:column;align-items:center">
+          <div class="cloud-body"></div>
+          <div class="rain-drops">
+            <div class="drop"></div><div class="drop"></div><div class="drop"></div>
+            <div class="drop"></div><div class="drop"></div>
+          </div>
+
+        </div>
+
+        <div class="haze-icon" id="iconHaze">
+          <div class="haze-line"></div><div class="haze-line"></div>
+          <div class="haze-line"></div><div class="haze-line"></div>
+        </div>
+
+        <div class="snow-icon" id="iconSnow" style="align-items:center;justify-content:center">
+          <div class="snowflake-icon">&#10052;</div>
+        </div>
+
+        <div class="cloud-icon" id="iconCloudy" style="align-items:center;justify-content:center">
+          <div class="cloud-big"></div>
+        </div>
+      </div>
+
+      <p id="conditionLabel" style="font-size:11px;color:var(--text-muted);text-align:center;letter-spacing:1px;text-transform:uppercase">—</p>
+    </div>
+    <div class="card-footer">
+      <span class="username">By:-Ankur</span>
+      <span class="subject">Role:Engineer</span>
+    </div>
+  </div>
+
+  <script>
+
+    /* ── CONSTANTS ───────────────────────────────────── */
+    var API_KEY = '98ecd32d7b24c7a769abe3091d55ecb7';
+
+    var BG_THEMES = {
+      sunny:  { top: '#1a1200', bot: '#3a2800', r:255, g:153, b:0,   op: 0.18 },
+      rain:   { top: '#0a1520', bot: '#0d2035', r:68,  g:136, b:204, op: 0.12 },
+      haze:   { top: '#1a1a22', bot: '#2a2a38', r:170, g:170, b:204, op: 0.10 },
+      snow:   { top: '#0d1828', bot: '#1a2a40', r:136, g:187, b:255, op: 0.14 },
+      cloudy: { top: '#111620', bot: '#1c2535', r:102, g:153, b:170, op: 0.10 }
+    };
+
+    var ICON_IDS = {
+      sunny: 'iconSunny', rain: 'iconRain',
+      haze:  'iconHaze',  snow: 'iconSnow', cloudy: 'iconCloudy'
+    };
+
+    /* ── CANVAS ──────────────────────────────────────── */
+    var bgCanvas  = document.getElementById('bgCanvas');
+    var bgCtx     = bgCanvas.getContext('2d');
+    var fxCanvas  = document.getElementById('weatherCanvas');
+    var fxCtx     = fxCanvas.getContext('2d');
+    var W = 0, H = 0;
+    var particles = [];
+    var currentCond = 'sunny';
+
+    function resize() {
+      W = bgCanvas.width = fxCanvas.width = window.innerWidth;
+      H = bgCanvas.height = fxCanvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', function() { resize(); drawBg(currentCond); buildParticles(currentCond); });
+
+    /* ── BACKGROUND ──────────────────────────────────── */
+    function drawBg(cond) {
+      var t = BG_THEMES[cond] || BG_THEMES.sunny;
+      var grad = bgCtx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, t.top);
+      grad.addColorStop(1, t.bot);
+      bgCtx.fillStyle = grad;
+      bgCtx.fillRect(0, 0, W, H);
+      var rad = bgCtx.createRadialGradient(W*0.5, H*0.3, 0, W*0.5, H*0.3, W*0.7);
+      rad.addColorStop(0, 'rgba('+t.r+','+t.g+','+t.b+','+t.op+')');
+      rad.addColorStop(1, 'transparent');
+      bgCtx.fillStyle = rad;
+      bgCtx.fillRect(0, 0, W, H);
+    }
+
+    /* ── items/particle ───────────────────────────────────── */
+    function buildParticles(cond) {
+      particles = [];
+      var i;
+      if (cond === 'rain') {
+        for (i = 0; i < 200; i++) particles.push({ x:Math.random()*W, y:Math.random()*H, len:12+Math.random()*20, speed:14+Math.random()*12, opacity:0.25+Math.random()*0.45 });
+      } else if (cond === 'snow') {
+        for (i = 0; i < 120; i++) particles.push({ x:Math.random()*W, y:Math.random()*H, r:2+Math.random()*4, speed:0.8+Math.random()*1.5, drift:(Math.random()-0.5)*0.8, opacity:0.4+Math.random()*0.5, wobble:Math.random()*Math.PI*2 });
+      } else if (cond === 'haze') {
+        for (i = 0; i < 14; i++) particles.push({ y:60+i*(H/14), w:W*(1.2+Math.random()*0.8), h:30+Math.random()*60, speed:0.3+Math.random()*0.5, opacity:0.025+Math.random()*0.04, offset:Math.random()*W });
+      } else if (cond === 'sunny') {
+        for (i = 0; i < 30; i++) particles.push({ x:Math.random()*W, y:Math.random()*H, r:1+Math.random()*2, speed:0.3+Math.random()*0.5, opacity:0.1+Math.random()*0.2, angle:Math.random()*Math.PI*2 });
+      }
+    }
+
+    function animate() {
+      fxCtx.clearRect(0, 0, W, H);
+      var p, i, g;
+      if (currentCond === 'rain') {
+        for (i = 0; i < particles.length; i++) {
+          p = particles[i];
+          fxCtx.beginPath(); fxCtx.strokeStyle = 'rgba(130,190,255,'+p.opacity+')'; fxCtx.lineWidth = 1;
+          fxCtx.moveTo(p.x, p.y); fxCtx.lineTo(p.x+1.5, p.y+p.len); fxCtx.stroke();
+          p.y += p.speed; p.x += 0.75;
+          if (p.y > H) { p.y = -p.len; p.x = Math.random()*W; }
+        }
+      } else if (currentCond === 'snow') {
+        for (i = 0; i < particles.length; i++) {
+          p = particles[i];
+          p.wobble += 0.02; p.x += Math.sin(p.wobble)*0.5+p.drift; p.y += p.speed;
+          if (p.y > H) { p.y = -10; p.x = Math.random()*W; }
+          if (p.x > W) p.x = 0; if (p.x < 0) p.x = W;
+          fxCtx.beginPath(); fxCtx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+          fxCtx.fillStyle = 'rgba(210,235,255,'+p.opacity+')'; fxCtx.fill();
+        }
+      } else if (currentCond === 'haze') {
+        for (i = 0; i < particles.length; i++) {
+          p = particles[i];
+          p.offset += p.speed; if (p.offset > W*2) p.offset = -W;
+          g = fxCtx.createLinearGradient(p.offset-p.w/2, 0, p.offset+p.w/2, 0);
+          g.addColorStop(0, 'transparent');
+          g.addColorStop(0.3, 'rgba(180,190,210,'+p.opacity+')');
+          g.addColorStop(0.7, 'rgba(180,190,210,'+p.opacity+')');
+          g.addColorStop(1, 'transparent');
+          fxCtx.fillStyle = g; fxCtx.fillRect(p.offset-p.w/2, p.y-p.h/2, p.w, p.h);
+        }
+      } else if (currentCond === 'sunny') {
+        for (i = 0; i < particles.length; i++) {
+          p = particles[i];
+          p.angle += 0.008; p.x += Math.cos(p.angle)*p.speed*0.3; p.y += Math.sin(p.angle)*p.speed*0.15;
+          if (p.x > W) p.x = 0; if (p.y > H) p.y = 0;
+          fxCtx.beginPath(); fxCtx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+          fxCtx.fillStyle = 'rgba(255,210,80,'+p.opacity+')'; fxCtx.fill();
+        }
+      }
+      requestAnimationFrame(animate);
+    }
+
+    /* ── UI ──────────────────────────────────── */
+    function showError(msg) {
+      var el = document.getElementById('errorBanner');
+      el.textContent = '\u26a0 ' + msg;
+      el.classList.add('visible');
+      setTimeout(function() { el.classList.remove('visible'); }, 6000);
+    }
+
+    function setLoading(on) {
+      document.getElementById('loadingOverlay').classList.toggle('active', on);
+      document.getElementById('goBtn').disabled = on;
+    }
+
+    function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+    /* ── WEATHER DATA ────────────────────────────────── */
+    function applyData(data) {
+      document.getElementById('cityDisplay').textContent    = data.name;
+      document.getElementById('countryDisplay').textContent = data.sys.country || '';
+      document.getElementById('tempDisplay').innerHTML      = Math.round(data.main.temp) + '<span>\xb0C</span>';
+      document.getElementById('descDisplay').textContent    = data.weather[0].description;
+      document.getElementById('feelsLike').innerHTML        = Math.round(data.main.feels_like) + '<span class="unit">\xb0C</span>';
+      document.getElementById('humidityVal').innerHTML      = data.main.humidity + '<span class="unit">%</span>';
+      document.getElementById('windVal').innerHTML          = Math.round(data.wind.speed * 3.6) + '<span class="unit">km/h</span>';
+      document.getElementById('visibVal').innerHTML         = (data.visibility / 1000).toFixed(1) + '<span class="unit">km</span>';
+
+      var lat = data.coord.lat, lon = data.coord.lon;
+      document.getElementById('latVal').textContent = Math.abs(lat).toFixed(1) + '\xb0' + (lat >= 0 ? 'N' : 'S');
+      document.getElementById('lonVal').textContent = Math.abs(lon).toFixed(1) + '\xb0' + (lon >= 0 ? 'E' : 'W');
+
+      var id = data.weather[0].id;
+      var cond = 'sunny', accent = '#ffd060';
+      if      (id >= 200 && id < 600) { cond = 'rain';   accent = '#6aadff'; }
+      else if (id >= 600 && id < 700) { cond = 'snow';   accent = '#b8d4ff'; }
+      else if (id >= 700 && id < 800) { cond = 'haze';   accent = '#aab8c8'; }
+      else if (id === 800)             { cond = 'sunny';  accent = '#ffd060'; }
+      else if (id >  800)              { cond = 'cloudy'; accent = '#90a4b8'; }
+
+      document.getElementById('conditionLabel').textContent = cap(data.weather[0].description);
+
+      var keys = Object.keys(ICON_IDS);
+      for (var k = 0; k < keys.length; k++) document.getElementById(ICON_IDS[keys[k]]).classList.remove('active');
+      document.getElementById(ICON_IDS[cond]).classList.add('active');
+
+      currentCond = cond;
+      document.documentElement.style.setProperty('--accent', accent);
+      drawBg(cond);
+      buildParticles(cond);
+    }
+
+    function fetchWeather(query) {
+      setLoading(true);
+      var url = 'https://api.openweathermap.org/data/2.5/weather?q=' + encodeURIComponent(query) + '&appid=' + API_KEY + '&units=metric';
+      fetch(url)
+        .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
+        .then(function(obj) {
+          if (!obj.ok) throw new Error(cap(obj.data.message || 'City not found.'));
+          applyData(obj.data);
+        })
+        .catch(function(err) { showError(err.message || 'Could not fetch weather.'); })
+        .finally(function() { setLoading(false); });
+    }
+
+    function updateWeather() {
+      var city    = document.getElementById('cityInput').value.trim();
+      var country = document.getElementById('countryInput').value.trim();
+      if (!city) { showError('Please enter a city name.'); return; }
+      fetchWeather(country ? city + ',' + country : city);
+    }
+
+    /* ── SUN RAYS ────────────────────────────────────── */
+    var raysEl = document.getElementById('sunRays');
+    for (var ri = 0; ri < 12; ri++) {
+      var ray = document.createElement('div');
+      ray.className = 'ray';
+      var ang = (ri / 12) * 360;
+      var len = 18 + Math.random() * 10;
+      ray.style.cssText = 'height:'+len+'px;transform:translate(-50%,-100%) rotate('+ang+'deg) translateY(-38px);opacity:'+(0.6+Math.random()*0.4)+';width:'+(2+Math.random())+'px;';
+      raysEl.appendChild(ray);
+    }
+
+    /* ── ENTER KEY ───────────────────────────────────── */
+    document.getElementById('cityInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') updateWeather(); });
+    document.getElementById('countryInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') updateWeather(); });
+
+    /* ── START ───────────────────────────────────────── */
+    drawBg('sunny');
+    buildParticles('sunny');
+    animate();
+
+    function fetchWeatherByLocation(lat, lon){
+
+    console.log("Latitude:", lat);
+    console.log("Longitude:", lon);
+
+    setLoading(true);
+
+    fetch(
+    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=98ecd32d7b24c7a769abe3091d55ecb7&units=metric`
+    )
+
+    .then(response => response.json())
+
+    .then(data => {
+
+        console.log(data);
+
+        if(data.cod != 200){
+            throw new Error(data.message);
+        }
+
+        applyData(data);
+
+    })
+
+    .catch(error => {
+
+        console.log(error);
+
+        showError(error.message);
+
+        fetchWeather("Bhopal,IN");
+
+    })
+
+    .finally(() => {
+
+        setLoading(false);
+
+    });
+}
+
+navigator.geolocation.getCurrentPosition(
+
+function(position){
+
+fetchWeatherByLocation(
+position.coords.latitude,
+position.coords.longitude
+);
+
+},
+
+function(error){
+
+console.log(error);
+
+showError("Location denied");
+
+fetchWeather("California,US");
+
+}
+
+);
+
+  </script>
+</body>
+</html>
