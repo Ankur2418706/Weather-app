@@ -236,27 +236,39 @@
     });
 }
 
-navigator.geolocation.getCurrentPosition(
+if ("geolocation" in navigator) {
 
-function(position){
+    navigator.geolocation.getCurrentPosition(
 
-fetchWeatherByLocation(
-position.coords.latitude,
-position.coords.longitude
-);
+        function(position){
 
-},
+            fetchWeatherByLocation(
+                position.coords.latitude,
+                position.coords.longitude
+            );
 
-function(error){
+        },
 
-console.log(error);
+        function(error){
 
-showError("Location denied");
+            console.log(error);
 
-fetchWeather("California,US");
+            showError("Location denied. Loading default city...");
 
+            fetchWeather("Bhopal,IN");
+        },
+
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+        }
+
+    );
+
+} else {
+
+    showError("Geolocation not supported");
+
+    fetchWeather("Bhopal,IN");
 }
-
-);
-
-  </script>
