@@ -156,7 +156,7 @@
 
     function fetchWeather(query) {
       setLoading(true);
-      var url = 'https://api.openweathermap.org/data/2.5/weather?q=' + encodeURIComponent(query) + '&appid=' + API_KEY + '&units=metric';
+      var url = 'https://api.openweathermap.org/data/2.5/weather?q=' + encodeURIComponent(query) + '&appid=' + "98ecd32d7b24c7a769abe3091d55ecb7" + '&units=metric';
       fetch(url)
         .then(function(res) { return res.json().then(function(data) { return { ok: res.ok, data: data }; }); })
         .then(function(obj) {
@@ -255,7 +255,7 @@ if ("geolocation" in navigator) {
 
             showError("Location denied. Loading default city...");
 
-            fetchWeather("Bhopal,IN");
+            fetchWeather("California,US");
         },
 
         {
