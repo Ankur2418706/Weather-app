@@ -15,7 +15,7 @@
       min-height: 100vh;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      overflow: hidden; background: #0d1b2a;
+      overflow-y: auto; overflow-x: hidden; background: #0d1b2a;
       color: var(--text-primary); position: relative;
     }
 
