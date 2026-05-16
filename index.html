@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather-app</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  </head>
+<body>
+
+  <canvas id="bgCanvas"></canvas>
+  <div class="bg-overlay"></div>
+  <canvas id="weatherCanvas"></canvas>
+
+  <div class="search-wrap">
+    <input type="text" id="countryInput" placeholder="Country (optional)">
+    <input type="text" id="cityInput" placeholder="City" autofocus>
+    <button id="goBtn" onclick="updateWeather()">Go</button>
+  </div>
+
+  <div class="error-banner" id="errorBanner"></div>
+
+  <div class="card">
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div> Fetching weather…
+    </div>
+
+    <div class="card-left">
+      <p class="country-tag" id="countryDisplay">—</p>
+      <h1 class="city-name" id="cityDisplay">Loading…</h1>
+      <div class="temp-main" id="tempDisplay">—<span>°C</span></div>
+
+      <p class="weather-desc" id="descDisplay">Fetching data</p>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-icon">FEELS LIKE</div>
+          <div class="stat-label">Apparent Temp</div>
+          <div class="stat-value" id="feelsLike">—<span class="unit">°C</span></div>
+          <div class="tooltip">How the temp actually feels on skin</div>
+        </div>
+
+        <div class="stat-box">
+          <div class="stat-icon">HUMIDITY</div>
+          <div class="stat-label">Relative %</div>
+          <div class="stat-value" id="humidityVal">—<span class="unit">%</span></div>
+          <div class="tooltip">Amount of moisture in the air</div>
+        </div>
+
+        <div class="stat-box">
+          <div class="stat-icon">WIND SPEED</div>
+          <div class="stat-label">Current Wind</div>
+          <div class="stat-value" id="windVal">—<span class="unit">km/h</span></div>
+          <div class="tooltip">Speed of wind at ground level</div>
+        </div>
+
+        <div class="stat-box">
+          <div class="stat-icon">VISIBILITY</div>
+          <div class="stat-label">View Range</div>
+          <div class="stat-value" id="visibVal">—<span class="unit">km</span></div>
+          <div class="tooltip">Maximum visibility distance</div>
+        </div>
+
+        <div class="stat-box">
+          <div class="stat-icon">LATITUDE</div>
+          <div class="stat-label">Coordinates</div>
+          <div class="stat-value" id="latVal" style="font-size:18px">—</div>
+          <div class="tooltip">Geographic latitude</div>
+        </div>
+
+        <div class="stat-box">
+          <div class="stat-icon">LONGITUDE</div>
+          <div class="stat-label">Coordinates</div>
+          <div class="stat-value" id="lonVal" style="font-size:18px">—</div>
+          <div class="tooltip">Geographic longitude</div>
+        </div>
+
+      </div>
+    </div>
+    <div class="card-right">
+      <div class="icon-wrap">
+        <div class="sun-icon active" id="iconSunny">
+          <div class="sun-rays" id="sunRays"></div>
+          <div class="sun-core"></div>
+        </div>
+
+        <div class="rain-icon" id="iconRain" style="flex-direction:column;align-items:center">
+          <div class="cloud-body"></div>
+          <div class="rain-drops">
+            <div class="drop"></div><div class="drop"></div><div class="drop"></div>
+            <div class="drop"></div><div class="drop"></div>
+          </div>
+
+        </div>
+
+        <div class="haze-icon" id="iconHaze">
+          <div class="haze-line"></div><div class="haze-line"></div>
+          <div class="haze-line"></div><div class="haze-line"></div>
+        </div>
+
+        <div class="snow-icon" id="iconSnow" style="align-items:center;justify-content:center">
+          <div class="snowflake-icon">&#10052;</div>
+        </div>
+
+        <div class="cloud-icon" id="iconCloudy" style="align-items:center;justify-content:center">
+          <div class="cloud-big"></div>
+        </div>
+      </div>
+
+      <p id="conditionLabel" style="font-size:11px;color:var(--text-muted);text-align:center;letter-spacing:1px;text-transform:uppercase">—</p>
+    </div>
+    <div class="card-footer">
+      <span class="username">By:-Ankur</span>
+      <span class="subject">Role:Engineer</span>
+    </div>
+  </div>
+
+  </body>
+  </html>
