@@ -1,6 +1,6 @@
   <script>
     
-    var API_KEY = 'YOUR_API_KEY';
+    var API_KEY = '98ecd32d7b24c7a769abe3091d55ecb7';
 
     var BG_THEMES = {
       sunny:  { top: '#1a1200', bot: '#3a2800', r:255, g:153, b:0,   op: 0.18 },
@@ -202,7 +202,7 @@
     setLoading(true);
 
     fetch(
-    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=YOUR_API_KEY&units=metric`
+    `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=98ecd32d7b24c7a769abe3091d55ecb7&units=metric`
     )
 
     .then(response => response.json())
