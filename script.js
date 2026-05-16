@@ -255,7 +255,7 @@ if ("geolocation" in navigator) {
 
             showError("Location denied. Loading default city...");
 
-            fetchWeather("California,US");
+            fetchWeather("Mumbai,IN");
         },
 
         {
